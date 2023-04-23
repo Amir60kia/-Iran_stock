@@ -1,0 +1,54 @@
+import re
+
+import pandas as pd
+import requests
+import time
+import os
+
+
+# تعریف تابع برای ذخیره داده‌ها در فایل اکسل
+def save_data(df, symbol):
+    # تعیین نام پوشه براساس نام نماد
+    dir_name = symbol
+    dir_name = re.sub(r'[^\w\s]', '', dir_name)  # حذف علامت‌ها
+    dir_name = f"data_1/{dir_name}"
+    # اگر پوشه وجود نداشت، آن را ایجاد کن
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
+
+    # تعیین نام فایل براساس تاریخ و ساعت
+    file_name = f"{dir_name}/{time.strftime('%Y-%m-%d_%H-%M-%S')}.xlsx"
+    # file_name = f"{dir_name}/{dir_name}.xlsx"
+    # اگر فایل وجود نداشت، ستون‌ها را اضافه کن
+    if not os.path.exists(file_name):
+        df.to_excel(file_name, index=False)
+    else:
+        # خواندن داده‌های فایل و اضافه کردن داده‌های جدید به انتهای آن
+        existing_df = pd.read_excel(file_name)
+        updated_df = existing_df.append(df, ignore_index=True)
+        updated_df.to_excel(file_name, index=False)
+
+
+while True:
+    try:
+        # دریافت اطلاعات از سایت بورس تهران
+        url = "http://members.tsetmc.com/tsev2/excel/MarketWatchPlus.aspx"
+        response = requests.get(url)
+
+        # ذخیره داده‌های دریافت شده در یک dataframe از pandas
+        df = pd.read_excel(response.content, header=None, skiprows=1)
+
+        # جدا کردن داده‌های هر نماد و ذخیره در فایل اکسل مجزا
+        for i in range(0, df.shape[0], 11):
+            symbol = df.iloc[i, 0]
+            data = df.iloc[i]
+
+            save_data(data, symbol)
+
+        print("Data saved successfully")
+
+    except Exception as e:
+        print("An error occurred: ", e)
+
+    # توقف برنامه برای یک ثانیه
+    time.sleep(10)
